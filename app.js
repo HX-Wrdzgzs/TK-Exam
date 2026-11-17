@@ -1,7 +1,7 @@
 
     (() => {
       "use strict";
-      const DATA_PARTS = ["questions-01.txt","questions-02.txt","questions-03.txt","questions-04.txt"];
+      const DATA_PARTS = ["questions-01.json","questions-02.json","questions-03.json","questions-04.json"];
       const STORAGE_KEY = "tk-exam-progress-v1";
       const typeNames = {s:"单选题",m:"多选题",j:"判断题",f:"填空题"};
       const $ = (id) => document.getElementById(id);
@@ -57,24 +57,40 @@
         try {
           const parts = await Promise.all(DATA_PARTS.map(async name => {
             const response = await fetch("./data/" + name);
-            if (!response.ok) throw new Error("题库文件加载失败：" + name);
-            return response.text();
+            if (!response.ok) throw new Error("题库文件加载失败：" + name + "（HTTP " + response.status + "）");
+            const data = await response.json();
+            if (!Array.isArray(data)) throw new Error("题库文件格式错误：" + name);
+            return data;
           }));
-          const binary = atob(parts.join("").trim());
-          const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
-          if (!("DecompressionStream" in window)) throw new Error("当前浏览器不支持题库解压，请更新浏览器后重试");
-          const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-          const raw = await new Response(stream).text();
-          const rows = JSON.parse(raw);
-          questions = rows.map(row => ({
-            id: row[0], type: row[1], stem: row[2],
-            options: row[3] || [], answer: row[4]
-          }));
+          const rows = parts.flat();
+          if (rows.length !== 594) throw new Error("题库数量异常：预期 594 道，实际 " + rows.length + " 道");
+          const counts = {s:0,m:0,j:0,f:0};
+          const validated = rows.map((row,index) => {
+            if (!Array.isArray(row) || row.length !== 5) throw new Error("第 " + (index+1) + " 道题数据结构错误");
+            const [id,type,stem,options,answer] = row;
+            if (id !== index+1 || !["s","m","j","f"].includes(type) || typeof stem !== "string" || !Array.isArray(options)) {
+              throw new Error("第 " + (index+1) + " 道题字段错误");
+            }
+            if (type === "s" && (!/^[A-F]$/.test(answer) || !options.some(o=>Array.isArray(o)&&o[0]===answer))) throw new Error("第 " + id + " 道单选题答案错误");
+            if (type === "m" && (typeof answer !== "string" || !/^[A-F]{2,}$/.test(answer) || [...answer].some(k=>!options.some(o=>Array.isArray(o)&&o[0]===k)))) throw new Error("第 " + id + " 道多选题答案错误");
+            if (type === "j" && !["正确","错误"].includes(answer)) throw new Error("第 " + id + " 道判断题答案错误");
+            if (type === "f" && (!Array.isArray(answer) || !answer.length || answer.some(v=>typeof v!=="string"||!v.trim()))) throw new Error("第 " + id + " 道填空题答案错误");
+            counts[type]++;
+            return {id,type,stem,options,answer};
+          });
+          const expected = {s:490,m:76,j:10,f:18};
+          if (Object.keys(expected).some(type=>counts[type]!==expected[type])) {
+            throw new Error("题型统计异常：" + JSON.stringify(counts));
+          }
+          questions = validated;
           $("total-count").textContent = questions.length;
           $("progress-label").textContent = `${progress.answeredIds.length} / ${questions.length}`;
+          renderDashboard();
           return questions;
         } catch (error) {
-          $("question-area").innerHTML = `<div class="empty">题库加载失败：${escapeHTML(error.message)}<br>请确认 Cloudflare Pages 已正确发布 data 目录。</div>`;
+          questions = [];
+          $("question-area").innerHTML = `<div class="empty">题库加载失败：${escapeHTML(error.message)}<br>请检查 data 目录中的 JSON 文件是否完整。</div>`;
+          showToast("题库加载失败，请检查数据文件");
           throw error;
         }
       }
