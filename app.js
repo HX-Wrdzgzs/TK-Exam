@@ -419,4 +419,226 @@
       renderDashboard();
       loadQuestions().then(()=>{renderDashboard();}).catch(()=>{});
     })();
+  "span"); textEl.className="option-text"; textEl.textContent=label;
+            button.append(keyEl,textEl);
+            button.addEventListener("click",()=>{
+              if (q.type==="m") {
+                const next=values.includes(key)?values.filter(x=>x!==key):values.concat(key);
+                setAnswer(q,next);
+              } else setAnswer(q,key);
+              renderQuestion();
+            });
+            options.append(button);
+          });
+          card.append(options);
+          if (q.type==="m") {
+            const hint=document.createElement("div"); hint.className="answer-hint"; hint.textContent="多选题：请选择所有正确选项，再提交答案。"; card.append(hint);
+          }
+        }
+        if (checked || session.submitted) {
+          const correct = evaluate(q,answerFor(q));
+          const result=document.createElement("div");
+          result.className="result-box "+(correct?"good":"bad");
+          const correctText = q.type==="f" ? q.answer.join("；") : q.type==="m" ? q.answer.split("").join("、") : q.type==="j" ? (q.answer==="正确"?"正确":"错误") : q.answer;
+          const userText = formatUserAnswer(q,answerFor(q));
+          result.innerHTML = `<strong>${correct?"回答正确":"回答错误"}</strong>你的答案：${escapeHTML(userText || "未作答")}<br>标准答案：${escapeHTML(correctText)}`;
+          card.append(result);
+        }
+        $("question-area").append(card);
+        $("check-answer").disabled = checked;
+        $("mark-wrong").disabled = session.mode==="exam" && session.submitted;
+        if (session.submitted && session.mode==="exam") $("finish-exam").disabled=true;
+        renderMap();
+      }
+      function formatUserAnswer(q, value) {
+        if (q.type==="f") return Array.isArray(value)?value.join("；"):"";
+        if (q.type==="m") return Array.isArray(value)?value.join("、"):"";
+        return value || "";
+      }
+      function normalizeText(value) {
+        return String(value??"").toLowerCase().replace(/\s+/g,"").replace(/[，,。.;；:：、"'“”‘’（）()【】\[\]]/g,"");
+      }
+      function evaluate(q, value) {
+        if (q.type==="f") {
+          if (!Array.isArray(value) || !Array.isArray(q.answer) || value.length!==q.answer.length) return false;
+          return q.answer.every((a,i)=>normalizeText(a)===normalizeText(value[i]));
+        }
+        if (q.type==="m") {
+          const chosen=Array.isArray(value)?value.slice().sort().join(""):"";
+          return chosen===String(q.answer).split("").sort().join("");
+        }
+        return String(value||"")===String(q.answer);
+      }
+      function submitPractice() {
+        const q=currentQuestion();
+        if (session.checked[q.id]) return;
+        const value=answerFor(q);
+        if (value==null || (Array.isArray(value) && value.every(x=>!String(x||"").trim()))) {
+          showToast("请先作答，再提交"); return;
+        }
+        const correct=evaluate(q,value);
+        session.checked[q.id]=true;
+        progress.attempts++;
+        if (correct) {
+          progress.correctAttempts++;
+          progress.wrongIds=progress.wrongIds.filter(id=>id!==q.id);
+        } else if (!progress.wrongIds.includes(q.id)) progress.wrongIds.push(q.id);
+        if (!progress.answeredIds.includes(q.id)) progress.answeredIds.push(q.id);
+        saveProgress();
+        renderQuestion();
+      }
+      function finishExam(auto=false) {
+        if (!session || session.submitted) return;
+        if (!auto && !confirm("确认交卷？交卷后将统一显示答案和成绩。")) return;
+        clearInterval(timerHandle);
+        let correctCount=0, answeredCount=0;
+        session.list.forEach(q=>{
+          const value=answerFor(q);
+          const answered=value!=null && (Array.isArray(value)?value.some(x=>String(x||"").trim()):String(value).trim()!=="");
+          if (answered) answeredCount++;
+          const correct=evaluate(q,value);
+          if (correct) correctCount++;
+          if (!correct && !progress.wrongIds.includes(q.id)) progress.wrongIds.push(q.id);
+          if (correct) progress.wrongIds=progress.wrongIds.filter(id=>id!==q.id);
+          if (answered && !progress.answeredIds.includes(q.id)) progress.answeredIds.push(q.id);
+          progress.attempts++;
+          if (correct) progress.correctAttempts++;
+          session.checked[q.id]=true;
+        });
+        session.submitted=true;
+        session.score=Math.round(correctCount/session.list.length*100);
+        saveProgress();
+        $("session-name").textContent="模拟考试成绩";
+        $("session-subtitle").textContent=auto?"考试时间结束，系统已自动交卷":"考试已结束，以下为本次成绩";
+        $("session-timer").textContent="已交卷";
+        $("finish-exam").classList.add("hidden");
+        $("check-answer").classList.remove("hidden");
+        $("check-answer").textContent="查看解析答案";
+        $("check-answer").disabled=true;
+        const score=document.createElement("div");
+        score.className="score-hero";
+        score.innerHTML=`<div><h2>本次考试完成</h2><p>答对 ${correctCount} 题 · 已作答 ${answeredCount} 题 · 共 ${session.list.length} 题</p></div><div class="score-value">${session.score}<small style="font-size:15px"> 分</small></div>`;
+        renderQuestion();
+        $("question-area").prepend(score);
+        $("map-legend").textContent="绿色为答对，红色为答错，点击题号查看答案";
+        showToast("已完成评分");
+      }
+      function renderMap() {
+        if (!session) return;
+        const map=$("question-map");
+        map.innerHTML="";
+        session.list.forEach((q,i)=>{
+          const btn=document.createElement("button");
+          btn.type="button"; btn.className="map-item"; btn.textContent=i+1;
+          if (i===session.index) btn.classList.add("current");
+          if (session.checked[q.id] || (session.submitted && session.answers[q.id]!=null)) btn.classList.add(evaluate(q,answerFor(q))?"done":"wrong");
+          btn.addEventListener("click",()=>{session.index=i;renderQuestion();});
+          map.append(btn);
+        });
+      }
+      function renderBank() {
+        if (!questions.length) return;
+        const query=$("bank-search").value.trim().toLowerCase();
+        const type=$("bank-type").value;
+        const filtered=questions.filter(q=>(type==="all"||q.type===type) && (!query || (q.stem+" "+q.options.map(o=>o[1]).join(" ")).toLowerCase().includes(query)));
+        $("bank-count").textContent=`筛选出 ${filtered.length} 道题目`;
+        const pages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+        bankPage=Math.min(bankPage,pages);
+        const slice=filtered.slice((bankPage-1)*PAGE_SIZE,bankPage*PAGE_SIZE);
+        const list=$("bank-list"); list.innerHTML="";
+        if (!slice.length) list.innerHTML='<div class="empty">没有找到匹配的题目。<br>请尝试更换关键词或题型。</div>';
+        slice.forEach(q=>{
+          const item=document.createElement("div"); item.className="bank-item";
+          const num=document.createElement("div"); num.className="bank-num"; num.textContent=q.id;
+          const body=document.createElement("div"); body.className="bank-text";
+          const stem=document.createElement("strong"); stem.textContent=q.stem;
+          const meta=document.createElement("div"); meta.className="bank-meta";
+          meta.innerHTML=`<span class="tag">${typeNames[q.type]}</span>${progress.wrongIds.includes(q.id)?'<span class="tag wrong-tag">待复习</span>':""}`;
+          body.append(stem,meta); item.append(num,body);
+          item.addEventListener("click",()=>startSession("order",[q.id]));
+          list.append(item);
+        });
+        const pager=$("bank-pagination"); pager.innerHTML="";
+        const prev=document.createElement("button"); prev.textContent="上一页"; prev.disabled=bankPage<=1; prev.onclick=()=>{bankPage--;renderBank();};
+        const info=document.createElement("button"); info.textContent=`${bankPage} / ${pages}`; info.disabled=true;
+        const next=document.createElement("button"); next.textContent="下一页"; next.disabled=bankPage>=pages; next.onclick=()=>{bankPage++;renderBank();};
+        pager.append(prev,info,next);
+      }
+      function renderWrongList() {
+        const list=$("wrong-list"); list.innerHTML="";
+        const wrong=progress.wrongIds.map(id=>questions.find(q=>q.id===id)).filter(Boolean);
+        if (!wrong.length) {
+          list.innerHTML='<div class="empty">错题本还是空的。<br>练习时答错的题目会自动出现在这里。</div>';
+          return;
+        }
+        wrong.sort((a,b)=>a.id-b.id).forEach(q=>{
+          const item=document.createElement("div"); item.className="bank-item";
+          const num=document.createElement("div"); num.className="bank-num"; num.textContent=q.id;
+          const body=document.createElement("div"); body.className="bank-text";
+          const stem=document.createElement("strong"); stem.textContent=q.stem;
+          const meta=document.createElement("div"); meta.className="bank-meta"; meta.innerHTML=`<span class="tag">${typeNames[q.type]}</span><span class="tag wrong-tag">待复习</span>`;
+          body.append(stem,meta); item.append(num,body); item.addEventListener("click",()=>startSession("wrong",[q.id])); list.append(item);
+        });
+      }
+      function exportProgress() {
+        const blob=new Blob([JSON.stringify({app:"TK Exam",version:1,exportedAt:new Date().toISOString(),progress},null,2)],{type:"application/json"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a"); a.href=url; a.download="tk-exam-progress.json"; a.click();
+        URL.revokeObjectURL(url);
+        showToast("学习记录已导出");
+      }
+      async function importProgress(file) {
+        try {
+          const data=JSON.parse(await file.text());
+          const p=data.progress || data;
+          if (!p || !Array.isArray(p.wrongIds) || !Array.isArray(p.answeredIds)) throw new Error("文件格式不正确");
+          progress.wrongIds=[...new Set(p.wrongIds.filter(Number.isInteger))];
+          progress.answeredIds=[...new Set(p.answeredIds.filter(Number.isInteger))];
+          progress.attempts=Number(p.attempts)||0;
+          progress.correctAttempts=Number(p.correctAttempts)||0;
+          progress.lastActive=p.lastActive||new Date().toISOString();
+          saveProgress(); showToast("学习记录导入成功");
+        } catch(error) { showToast("导入失败：" + error.message); }
+      }
+
+      document.querySelectorAll(".nav button").forEach(btn=>btn.addEventListener("click",async()=>{
+        if(btn.dataset.view==="practice"){
+          await loadQuestions();
+          startSession("order",questions.map(q=>q.id));
+        } else showView(btn.dataset.view);
+      }));
+      $("start-order").addEventListener("click",async()=>{await loadQuestions();startSession("order",questions.map(q=>q.id));});
+      $("start-random").addEventListener("click",async()=>{await loadQuestions();startSession("random",shuffle(questions.map(q=>q.id)));});
+      $("start-exam").addEventListener("click",async()=>{
+        await loadQuestions();
+        const count=Number($("exam-count").value), duration=Number($("exam-duration").value);
+        startSession("exam",shuffle(questions.map(q=>q.id)).slice(0,count),{duration});
+      });
+      $("start-wrong").addEventListener("click",async()=>{await loadQuestions();startSession("wrong",progress.wrongIds.slice().sort((a,b)=>a-b));});
+      $("continue-btn").addEventListener("click",async()=>{await loadQuestions();startSession("order",questions.map(q=>q.id));});
+      $("session-back").addEventListener("click",()=>{clearInterval(timerHandle);showView("home");});
+      $("prev-question").addEventListener("click",()=>{if(session&&session.index>0){session.index--;renderQuestion();}});
+      $("next-question").addEventListener("click",()=>{if(session&&session.index<session.list.length-1){session.index++;renderQuestion();}});
+      $("check-answer").addEventListener("click",submitPractice);
+      $("finish-exam").addEventListener("click",()=>finishExam(false));
+      $("mark-wrong").addEventListener("click",()=>{
+        if(!session)return; const id=currentQuestion().id;
+        if(progress.wrongIds.includes(id)) progress.wrongIds=progress.wrongIds.filter(x=>x!==id);
+        else progress.wrongIds.push(id);
+        saveProgress(); renderQuestion(); showToast("错题本已更新");
+      });
+      $("bank-search").addEventListener("input",()=>{bankPage=1;renderBank();});
+      $("bank-type").addEventListener("change",()=>{bankPage=1;renderBank();});
+      $("clear-wrong").addEventListener("click",()=>{
+        if(!progress.wrongIds.length)return;
+        if(confirm("确定清空全部错题记录？")){progress.wrongIds=[];saveProgress();renderWrongList();}
+      });
+      $("export-btn").addEventListener("click",exportProgress);
+      $("import-btn").addEventListener("click",()=>$("import-file").click());
+      $("import-file").addEventListener("change",e=>{const file=e.target.files[0];if(file)importProgress(file);e.target.value="";});
+      window.addEventListener("beforeunload",()=>{if(session&&!session.submitted)progress.lastSession={mode:session.mode,index:session.index,ids:session.list.map(q=>q.id),answers:session.answers};saveProgress();});
+
+      renderDashboard();
+      loadQuestions().then(()=>{renderDashboard();}).catch(()=>{});
+    })();
   
