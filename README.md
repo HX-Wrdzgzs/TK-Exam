@@ -58,4 +58,4 @@ python -m http.server 8080
 
 ## 技术
 
-原生 HTML、CSS、JavaScript；无 npm 依赖、无构建步骤。题库使用浏览器原生 `DecompressionStream` 解压，建议使用近期版本的 Chrome、Edge、Firefox 或 Safari。
+原生 HTML、CSS、JavaScript；无 npm 依赖、无构建步骤。题库使用原生 `fetch` 与 `response.json()` 加载，无需浏览器解压 API。
