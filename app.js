@@ -11,6 +11,7 @@
   let mode = "order";
   let order = [];
   let index = 0;
+  let autoNextTimer = null;
   let answers = {};
   let checked = {};
   let page = 1;
@@ -92,7 +93,15 @@
     return copy;
   }
 
+  function cancelAutoNext() {
+    if (autoNextTimer !== null) {
+      clearTimeout(autoNextTimer);
+      autoNextTimer = null;
+    }
+  }
+
   function selectPage(name) {
+    if (name !== "practice") cancelAutoNext();
     document.querySelectorAll(".page").forEach(el => el.classList.toggle("active",el.id==="page-"+name));
     document.querySelectorAll(".tabs button").forEach(btn => btn.classList.toggle("active",btn.dataset.page===name));
     if (name==="bank") renderBank();
@@ -100,6 +109,7 @@
   }
 
   function setMode(next, jumpId=null, restored=null) {
+    cancelAutoNext();
     if (!bank.length) return;
     if (next==="wrong" && !record.wrongIds.length) {
       showError("错题本为空，先做几道题。");
@@ -163,11 +173,13 @@
 
   function recordAnswer(q, value) {
     if (checked[q.id]) return;
+    cancelAutoNext();
+    const passed = correct(q, value);
     answers[q.id]=value;
     checked[q.id]=true;
     record.attempts++;
     if (!record.answeredIds.includes(q.id)) record.answeredIds.push(q.id);
-    if (correct(q,value)) {
+    if (passed) {
       record.correctAttempts++;
       record.wrongIds=record.wrongIds.filter(id=>id!==q.id);
     } else if (!record.wrongIds.includes(q.id)) {
@@ -175,6 +187,17 @@
     }
     save();
     renderQuestion();
+    // Show the correct result briefly before moving on. Wrong answers stay visible.
+    if (passed && index < order.length - 1) {
+      const expectedIndex = index;
+      const expectedMode = mode;
+      const expectedId = q.id;
+      autoNextTimer = setTimeout(() => {
+        autoNextTimer = null;
+        if (index !== expectedIndex || mode !== expectedMode || order[index] !== expectedId) return;
+        move(1);
+      }, 650);
+    }
   }
 
   function renderQuestion() {
@@ -280,6 +303,7 @@
   }
 
   function move(offset) {
+    cancelAutoNext();
     if (!order.length) return;
     index=Math.max(0,Math.min(order.length-1,index+offset));
     renderQuestion();
@@ -287,6 +311,7 @@
   }
 
   function jumpTo(id) {
+    cancelAutoNext();
     const q=Number(id);
     if (!Number.isInteger(q)||q<1||q>bank.length) {
       showError("请输入 1 至 594 的题号。");
