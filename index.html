@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f6fa">
+  <meta name="description" content="团课结业考试在线刷题工具，支持顺序练习、随机练习、模拟考试、错题复习与本地学习记录。">
+  <title>TK Exam · 团课结业考试</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">TK</div>
+        <div>
+          <div class="brand-name">TK Exam</div>
+          <div class="brand-sub">团课结业考试 · 在线练习系统</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="quiet-btn" id="export-btn" type="button">导出记录</button>
+        <button class="quiet-btn" id="import-btn" type="button">导入记录</button>
+        <input id="import-file" type="file" accept="application/json,.json" class="hidden">
+      </div>
+    </header>
+
+    <nav class="nav" aria-label="主导航">
+      <button data-view="home" class="active">首页</button>
+      <button data-view="practice">顺序练习</button>
+      <button data-view="bank">题库浏览</button>
+      <button data-view="wrong">错题本</button>
+    </nav>
+
+    <main>
+      <section id="view-home" class="view active">
+        <div class="welcome">
+          <div class="welcome-copy">
+            <div class="eyebrow">STUDY SMART · TK EXAM</div>
+            <h1>把每一道题，练到真正掌握。</h1>
+            <p>支持顺序练习、随机抽题、模拟考试与错题复习。<br>学习记录保存在当前设备浏览器中。</p>
+          </div>
+          <div class="welcome-side">
+            <div class="welcome-number" id="total-count">594</div>
+            <div class="welcome-label">道题目已就绪</div>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card"><div class="stat-label">已练习题目</div><div class="stat-value" id="stat-practiced">0</div><div class="stat-note">按题目去重统计</div></div>
+          <div class="stat-card"><div class="stat-label">累计答题次数</div><div class="stat-value" id="stat-attempts">0</div><div class="stat-note">包含重复练习</div></div>
+          <div class="stat-card"><div class="stat-label">累计正确率</div><div class="stat-value" id="stat-accuracy">—</div><div class="stat-note">按答题次数计算</div></div>
+          <div class="stat-card"><div class="stat-label">待复习错题</div><div class="stat-value" id="stat-wrong">0</div><div class="stat-note">答对后自动移出</div></div>
+        </div>
+
+        <div class="section-head">
+          <div><h2>选择学习模式</h2><p>按当前目标选择适合的练习方式</p></div>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-card" id="start-order">
+            <div class="mode-icon">01</div><h3>顺序练习</h3><p>按照原题库顺序逐题练习，适合系统复习。</p>
+          </button>
+          <button class="mode-card" id="start-random">
+            <div class="mode-icon">↗</div><h3>随机练习</h3><p>随机打乱题目顺序，减少对固定顺序的依赖。</p>
+          </button>
+          <button class="mode-card" id="start-exam">
+            <div class="mode-icon">⌁</div><h3>模拟考试</h3><p>随机组卷、限时答题，交卷后统一查看成绩。</p>
+          </button>
+          <button class="mode-card" id="start-wrong">
+            <div class="mode-icon">↻</div><h3>错题复习</h3><p>集中练习尚未掌握的题目，答对后自动移出。</p>
+          </button>
+        </div>
+
+        <div class="home-bottom">
+          <div class="panel">
+            <h3>题库掌握进度</h3>
+            <div class="progress-row"><span>已练习</span><strong id="progress-label">0 / 594</strong></div>
+            <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+            <div class="quick-line"><span>单选题</span><strong>490 道</strong></div>
+            <div class="quick-line"><span>多选题</span><strong>76 道</strong></div>
+            <div class="quick-line"><span>判断题</span><strong>10 道</strong></div>
+            <div class="quick-line"><span>填空题</span><strong>18 道</strong></div>
+          </div>
+          <div class="panel">
+            <h3>练习设置</h3>
+            <div class="quick-line"><span>模拟考试题量</span>
+              <select id="exam-count" class="field" style="min-width:85px;padding:7px 9px">
+                <option value="20">20 题</option><option value="50" selected>50 题</option><option value="100">100 题</option><option value="594">全题库</option>
+              </select>
+            </div>
+            <div class="quick-line"><span>考试时长</span>
+              <select id="exam-duration" class="field" style="min-width:85px;padding:7px 9px">
+                <option value="20">20 分钟</option><option value="40">40 分钟</option><option value="60" selected>60 分钟</option><option value="90">90 分钟</option>
+              </select>
+            </div>
+            <div class="quick-line"><span>答题记录</span><strong id="last-active">尚未开始</strong></div>
+            <button class="btn primary" id="continue-btn" style="width:100%;margin-top:13px">开始练习</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-session" class="view">
+        <div class="session-top">
+          <div class="session-title">
+            <button class="back-btn" id="session-back">← 返回</button>
+            <div><h2 id="session-name">顺序练习</h2><p id="session-subtitle">逐题练习，即时核对答案</p></div>
+          </div>
+          <div class="session-meta"><div id="session-count">第 1 / 594 题</div><div id="session-timer" style="margin-top:4px"></div></div>
+        </div>
+        <div class="session-progress"><div id="session-progress-fill"></div></div>
+        <div id="question-area" class="loading">正在加载题目…</div>
+        <div class="session-controls">
+          <div class="control-left">
+            <button class="btn" id="prev-question">上一题</button>
+            <button class="btn" id="next-question">下一题</button>
+          </div>
+          <div class="control-right">
+            <button class="btn" id="mark-wrong">标记为错题</button>
+            <button class="btn primary" id="check-answer">提交答案</button>
+            <button class="btn primary hidden" id="finish-exam">交卷并评分</button>
+          </div>
+        </div>
+        <div class="question-map">
+          <div class="map-head"><strong>答题卡</strong><span id="map-legend">点击题号可跳转</span></div>
+          <div class="map-grid" id="question-map"></div>
+        </div>
+      </section>
+
+      <section id="view-bank" class="view">
+        <div class="toolbar">
+          <div><h2>题库浏览</h2><p id="bank-count">共 594 道题目</p></div>
+          <div class="filters">
+            <input class="field" id="bank-search" type="search" placeholder="搜索题干或选项">
+            <select class="field" id="bank-type">
+              <option value="all">全部题型</option><option value="s">单选题</option><option value="m">多选题</option><option value="j">判断题</option><option value="f">填空题</option>
+            </select>
+          </div>
+        </div>
+        <div class="bank-list" id="bank-list"><div class="loading">正在加载题库…</div></div>
+        <div class="pagination" id="bank-pagination"></div>
+      </section>
+
+      <section id="view-wrong" class="view">
+        <div class="toolbar">
+          <div><h2>错题本</h2><p>答错的题目会自动加入，答对后自动移出</p></div>
+          <button class="btn" id="clear-wrong">清空错题本</button>
+        </div>
+        <div id="wrong-list" class="bank-list"></div>
+      </section>
+    </main>
+    <footer class="footer">TK Exam · 纯静态网页 · 学习数据仅保存在本机浏览器</footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="./app.js" defer></script>
+</body>
+</html>
