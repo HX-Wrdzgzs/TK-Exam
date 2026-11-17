@@ -78,7 +78,7 @@
             counts[type]++;
             return {id,type,stem,options,answer};
           });
-          const expected = {s:490,m:76,j:10,f:18};
+          const expected = {s:455,m:76,j:45,f:18};
           if (Object.keys(expected).some(type=>counts[type]!==expected[type])) {
             throw new Error("题型统计异常：" + JSON.stringify(counts));
           }
@@ -212,9 +212,12 @@
               if (isCorrect) button.classList.add("correct");
               else if (selected) button.classList.add("incorrect");
             }
-            const keyEl=document.createElement("span"); keyEl.className="option-key"; keyEl.textContent=key;
             const textEl=document.createElement("span"); textEl.className="option-text"; textEl.textContent=label;
-            button.append(keyEl,textEl);
+            if (q.type==="j") button.append(textEl);
+            else {
+              const keyEl=document.createElement("span"); keyEl.className="option-key"; keyEl.textContent=key;
+              button.append(keyEl,textEl);
+            }
             button.addEventListener("click",()=>{
               if (q.type==="m") {
                 const next=values.includes(key)?values.filter(x=>x!==key):values.concat(key);
