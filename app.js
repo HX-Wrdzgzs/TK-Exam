@@ -200,6 +200,29 @@
     }
   }
 
+  function renderStem(stem) {
+    const holder = $("question-text");
+    holder.replaceChildren();
+    // Original question bank uses spaces, underscores, and empty parentheses for blanks.
+    const markers = /\([ \u3000]*\)|（[ \u3000]*）|_+| {2,}|　+/g;
+    let cursor = 0;
+    for (const match of stem.matchAll(markers)) {
+      const start = match.index;
+      if (start > cursor) holder.append(document.createTextNode(stem.slice(cursor, start)));
+      const token = match[0];
+      const bracketed = token[0] === "(" || token[0] === "（";
+      if (bracketed) holder.append(document.createTextNode(token[0]));
+      const blank = document.createElement("span");
+      blank.className = "stem-blank";
+      blank.setAttribute("role", "img");
+      blank.setAttribute("aria-label", "待填写空白");
+      holder.append(blank);
+      if (bracketed) holder.append(document.createTextNode(token[token.length - 1]));
+      cursor = start + token.length;
+    }
+    if (cursor < stem.length) holder.append(document.createTextNode(stem.slice(cursor)));
+  }
+
   function renderQuestion() {
     if (!order.length) return;
     const q=activeQuestion();
@@ -208,7 +231,7 @@
     $("question-type").textContent=TYPES[q.type];
     $("question-number").textContent="原题 "+q.id;
     $("question-position").textContent=(index+1)+" / "+order.length;
-    $("question-text").textContent=q.stem;
+    renderStem(q.stem);
     $("previous").disabled=index===0;
     $("next").disabled=index===order.length-1;
     $("jump-number").value=q.id;
