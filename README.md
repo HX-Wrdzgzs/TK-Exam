@@ -24,7 +24,7 @@
 | 填空题 | 18 |
 | **合计** | **594** |
 
-题目与标准答案按原文件整理。原文件未提供解析，因此网站不补写解析。题库经 gzip 压缩后以 Base64 文本分为 `data/questions-01.txt` 至 `data/questions-04.txt`，浏览器端自动解压加载。
+题目与标准答案按原文件整理。原文件未提供解析，因此网站不补写解析。题库按题号分为 `data/questions-01.json` 至 `data/questions-04.json`，浏览器端并行加载并校验题号、答案字段与题型数量。
 
 ## 部署到 Cloudflare Pages
 
