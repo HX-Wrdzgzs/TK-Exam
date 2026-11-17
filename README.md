@@ -1,61 +1,43 @@
-# TK Exam
+# TK Exam · 团课刷题
 
-团课结业考试在线刷题网站。纯静态前端，可直接部署到 Cloudflare Pages，无需服务器、数据库或账号系统。
+简单的静态刷题网站，可部署到 Cloudflare Pages，不需要账号或数据库。
 
 ## 功能
 
-- 顺序练习、随机练习、错题复习
-- 模拟考试：随机组卷、可选题量与时长、倒计时、交卷评分
-- 单选、多选、判断、填空四种题型
-- 即时判题、答题卡跳转、题库搜索与题型筛选
-- 错题自动归集，复习答对后自动移出
-- 本地答题统计、学习记录 JSON 导入 / 导出
-- 手机与桌面端自适应布局
+- 打开网页直接显示题目，不需要点击“开始练习”
+- 顺序刷题、随机刷题、错题本、题库搜索、题号跳转
+- 单选题与判断题点选后立即判题；多选题和填空题点击“确认答案”
+- 自动记录错题和正确率；数据保存在当前浏览器，可导出、导入 JSON
+- 手机、电脑自适应
 
-## 题库
+题库来自《团课结业考试-题库.docx》，共 **594 道**，按作答交互归类为：单选 455、多选 76、判断 45、填空 18。其中有 35 道 A/B 形式的判断题按判断题显示。
 
-题目来源：用户提供的《团课结业考试-题库.docx》。
+题库：`data/questions-01.json` 至 `data/questions-04.json`。
 
-| 题型 | 数量 |
-|---|---:|
-| 单选题 | 455 |
-| 多选题 | 76 |
-| 判断题 | 45 |
-| 填空题 | 18 |
-| **合计** | **594** |
+## Cloudflare Pages：每次提交自动部署
 
-题目与标准答案按原文件整理。原文件未提供解析，因此网站不补写解析。题库按题号分为 `data/questions-01.json` 至 `data/questions-04.json`，浏览器端并行加载并校验题号、答案字段与题型数量。
+使用 **Git 集成（Connect to Git）** 关联 `HX-Wrdzgzs/TK-Exam`。
 
-## 部署到 Cloudflare Pages
+- Production branch：`main`
+- Framework preset：`None`
+- Build command：留空
+- Build output directory：`.`
+- 在 Cloudflare Pages 项目设置 → **Builds → Branch control** 中启用 **Enable automatic production branch deployments**
 
-1. 登录 Cloudflare Dashboard。
-2. 进入 **Workers & Pages → Create → Pages → Connect to Git**。
-3. 选择 GitHub 仓库 `HX-Wrdzgzs/TK-Exam`。
-4. 生产分支选择 `main`。
-5. Framework preset 选择 **None**。
-6. Build command 留空。
-7. Build output directory 填写 `.`。
-8. 点击 **Save and Deploy**。
+配置完成后，向 GitHub `main` 推送修改就会触发 Cloudflare Pages 的生产部署。不需要再上传文件或手工点击部署。**注意：这只有在 Pages 项目通过 Git 集成建立且自动部署已启用时才生效；仅创建一个 Direct Upload 项目不会自动同步 GitHub。**
 
-之后每次向 `main` 分支推送提交，Cloudflare Pages 都会自动重新部署。
+Cloudflare Pages 官方文档：https://developers.cloudflare.com/pages/configuration/git-integration/
 
 ## 本地预览
 
-不要直接双击 `index.html`，浏览器需要通过 HTTP 请求题库文件。在项目根目录执行：
+在仓库根目录启动静态服务器：
 
 ```bash
 python -m http.server 8080
 ```
 
-然后访问 `http://localhost:8080`。
+打开 `http://localhost:8080`。不要直接以 `file://` 打开 `index.html`，否则题库 JSON 无法通过 `fetch` 加载。
 
-## 数据与隐私
+## 说明
 
-- 不需要账号、后端或数据库。
-- 答题记录保存在当前浏览器的 `localStorage` 中，不会自动上传，也不会自动跨设备同步。
-- 清理浏览器站点数据可能导致记录丢失，请定期使用页面右上角的“导出记录”备份。
-- 可在其他设备通过“导入记录”恢复错题与统计。
-
-## 技术
-
-原生 HTML、CSS、JavaScript；无 npm 依赖、无构建步骤。题库使用原生 `fetch` 与 `response.json()` 加载，无需浏览器解压 API。
+学习记录在浏览器 `localStorage` 中；清理站点数据可能丢失记录。网站不自动跨设备同步。
